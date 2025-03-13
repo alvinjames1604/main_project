@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Text Extractor</title>
+    <script src="https://unpkg.com/tesseract.js"></script>
+    <style>
+        *{
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(to right, #6a11cb, #2575fc);
+            margin: 0;
+            color: white;
+        }
+
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            color: #333;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+        }
+
+        button {
+            margin: 10px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            font-size: 16px;
+            transition: 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        textarea,
+        input[type="file"] {
+            width: 100%;
+            margin-top: 12px;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #status {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .output-box {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Choose Input Method</h2>
+        <button id="textButton">Text</button>
+        <button id="imageButton">Image</button>
+
+        <div id="textSection" class="hidden">
+            <h2>Input Text</h2>
+            <textarea id="input_text" rows="4" placeholder="Enter text here..."></textarea>
+            <button id="submitText">Submit</button>
+            <p id="textResponse"></p>
+            <p id="textTranslation"></p>
+        </div>
+
+        <div id="imageSection" class="hidden">
+            <h2>Extract Text from Image</h2>
+            <input type="file" id="imageInput" accept="image/*">
+            <p id="status"></p>
+            <pre class="output-box" id="output"></pre>
+            <p id="imageResponse"></p>
+            <p id="imageTranslation"></p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('textButton').addEventListener('click', function () {
+            document.getElementById('textSection').classList.remove('hidden');
+            document.getElementById('imageSection').classList.add('hidden');
+        });
+
+        document.getElementById('imageButton').addEventListener('click', function () {
+            document.getElementById('imageSection').classList.remove('hidden');
+            document.getElementById('textSection').classList.add('hidden');
+        });
+
+        document.getElementById('submitText').addEventListener('click', function () {
+            const text = document.getElementById('input_text').value.trim();
+            if (!text) {
+                alert("Please enter some text.");
+                return;
+            }
+            detectLanguage(text, 'textResponse', 'textTranslation');
+        });
+
+        document.getElementById('imageInput').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function () {
+                document.getElementById('status').textContent = "Extracting text...";
+
+                Tesseract.recognize(reader.result, 'eng+spa+fra+deu+ita+por+rus+hin+jpn+chi_sim+chi_tra+kor+tur+ara+nld+dan+ell+mal+tam+kan+tel+urd')
+                    .then(({ data: { text } }) => {
+                        document.getElementById('output').textContent = text.trim();
+                        document.getElementById('status').textContent = "Extraction complete!";
+
+                        if (text.trim()) {
+                            detectLanguage(text.trim(), 'imageResponse', 'imageTranslation');
+                        } else {
+                            document.getElementById('imageResponse').textContent = "No text detected.";
+                        }
+                    })
+                    .catch(error => {
+                        document.getElementById('status').textContent = "Error: " + error;
+                    });
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function detectLanguage(text, responseElement, translationElement) {
+            fetch('/detect-language', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById(responseElement).textContent = "Detected Language: " + data.language;
+                    document.getElementById(translationElement).textContent = "Translation: " + data.translation;
+                })
+                .catch(error => console.error('Error:', error));
+        }
+    </script>
+</body>
+
+</html>
